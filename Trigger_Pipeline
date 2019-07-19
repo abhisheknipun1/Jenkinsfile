@@ -1,0 +1,62 @@
+pipeline 
+{
+
+    agent {
+    		label 'Docker'
+	}
+	stages {
+            stage('Set Working Directory') {
+                steps {
+                    script {
+                        def dir = pwd()    // present working directory is good enough for now as this is also the jenkins working directory/scratch space.
+                        echo '--------------- Current working directory is : ' + dir
+                        }
+                }
+            }
+		stage('Checkout materials from Git') {
+            steps{
+				script {
+                    echo '--------------- Get CSV from Git.'
+                    dir ('CSVs') {
+		               git credentialsId: '3e465432-8c25-405f-b2b1-720522836806', url: 'https://github.com/abhisheknipun1/DevOps-Project.git'
+					}
+				}	
+			}
+		}
+		stage('Parse the CSV and trigger build') {
+            steps {
+                script {      
+                    dir ('CSVs') {
+                        if (fileExists('Nipun/test.csv')) {
+                            echo 'Nipun/test.csv'
+                            def branches = [:] 
+                            def Index = 0
+                                                      
+                            readFile("Nipun/test.csv").split('\n').each { line, count ->
+                                def fields = line.split(',')
+                                branches["branch${Index}"] = {
+                                    if ( fields[0] == 'P1' ) {
+                                        // Do nothing as we need to skip the Header Row
+                                    } else {
+                                        echo "Sending ---->  " + fields[0] + ': ' + fields[1] + fields[2] + ': ' + fields[3] + ': ' + fields[4];
+					fields[4] = fields[4].toLowerCase()
+                                        		build job: 'Nipun/Main_Pipeline', wait: false, parameters: [
+                                            		[$class: 'StringParameterValue', name: 'P1', value: "${fields[0]}"],
+							[$class: 'StringParameterValue', name: 'P2', value: "${fields[1]}"],
+							[$class: 'StringParameterValue', name: 'P3', value: "${fields[2]}"],
+							[$class: 'StringParameterValue', name: 'P4', value: "${fields[3]}"],
+							[$class: 'StringParameterValue', name: 'Option', value: "${fields[4]}"],]
+					                            }
+                                }
+                                Index++;
+                            }
+                            parallel branches                            
+                        } else {
+                                echo 'Nipun/test.csv Not found. Failing.'
+                        }
+		   }
+               }
+            }
+	}
+     }   
+}
