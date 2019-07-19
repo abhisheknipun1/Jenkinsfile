@@ -1,0 +1,70 @@
+pipeline 
+{
+    agent {
+    		label 'Docker'
+	    }
+	    environment {	
+    	def Option = "${params.Option}"		
+	}
+	stages {
+                stage('Starting Upper Stage') {
+		when {
+      			expression { Option == 'yes' }
+     			}
+                    steps {
+                        build job: 'Nipun/Job1'
+			}
+			}
+		    stage('Parallel Stage') {
+		    when {
+      			expression { Option == 'yes' }
+     			}
+			parallel {
+                	stage('Job2') {
+                    steps {
+                        build job: 'Nipun/Job2', parameters: [
+                        [$class: 'StringParameterValue', name: 'P1', value: "${P1}"],]
+                    }
+		    }
+		    stage('Job3') {
+                    steps {
+                        build job: 'Nipun/Job2', parameters: [
+                        [$class: 'StringParameterValue', name: 'P1', value: "${P1}"],]
+                    }
+		}}
+			}
+			stage('Ending Upper Stage') {
+			when {
+      			expression { Option == 'yes' }
+     			}
+                    		steps {
+                        build job: 'Nipun/Job4', parameters: [
+                        [$class: 'StringParameterValue', name: 'P3', value: "${P3}"],]
+                    	}}
+		      stage('Starting Lower Stage') {
+		      when {
+      			expression { Option == 'no' }
+     			}
+                   	 steps {
+                        build job: 'Nipun/Job5'
+			}
+			}
+			stage('Ending Lower Stage') {
+			when {
+      			expression { Option == 'no' }
+     			}
+                    		steps {
+                        build job: 'Nipun/Job6', parameters: [
+                        [$class: 'StringParameterValue', name: 'P4', value: "${P4}"],]
+                    	}}
+			stage('End of Pipeline') {
+            			steps {
+				build job: 'Nipun/Job7', parameters: [
+                        [$class: 'StringParameterValue', name: 'P1', value: "${P1}"],
+			 [$class: 'StringParameterValue', name: 'P2', value: "${P2}"],
+			  [$class: 'StringParameterValue', name: 'P3', value: "${P3}"],
+			   [$class: 'StringParameterValue', name: 'P4', value: "${P4}"],]
+			 }
+		}
+	}
+}
