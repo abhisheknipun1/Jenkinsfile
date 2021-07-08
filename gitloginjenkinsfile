@@ -1,0 +1,17 @@
+ pipeline 
+{
+    agent any
+    stages{
+      stage(GitLogin)
+        {
+            withCredentials([usernamePassword(credentialsId: 'Git_cred', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+        
+                sh """
+                git config --global credential.username ${GIT_USERNAME}
+       			 git config --global credential.helper "!echo password=${GIT_PASSWORD}; echo"
+				 """
+				 }
+       }
+     }
+     
+    }
