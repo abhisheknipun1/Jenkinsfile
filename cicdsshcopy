@@ -1,0 +1,70 @@
+/*
+
+Pre-Requisites:
+
+1. run "ssh-keygen" command from remote host from home user path
+2. download "sshagent" jenkins plugin
+3. create credential with username and private key(copy private key that we have created by running "ssh-keygen" command on remote host
+4. copy public key to newfile in the same .ssh folder in unix and windows(if not admin user). File name will be "authorized_keys"
+5. For Admin user on windows - follow this link for more details - https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_keymanagement
+
+*/
+
+pipeline {
+    agent any
+
+    stages {
+        stage('checkout') {
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/master']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/abhisheknipun1/DevOps-Project.git']]])
+                sh 'ls -lrt'
+                }
+            }
+        stage('unix-ssh-copy-file') {
+            steps {
+                sshagent(['ssh-unix']) {
+                    //sh 'ssh -o StrictHostKeyChecking=no -l ec2-user 65.0.74.43 ls'
+                    sh 'scp -r /var/lib/jenkins/workspace/ssh-poc/src/main/* ec2-user@65.0.74.43:/home/ec2-user'
+                    sh 'ssh -o StrictHostKeyChecking=no -l ec2-user 65.0.74.43 ls -lrt'
+                }
+            }
+        }
+        stage('win-ssh-copy-file') {
+            steps {
+                sshagent(['windows-ssh']) {
+                    //sh 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 dir'
+                    sh 'scp -r /var/lib/jenkins/workspace/ssh-poc/src/main/* Administrator@43.205.113.33:C:/Users/Administrator'
+                    sh 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 dir'
+                }
+            }
+        }
+        stage('win-ssh-copy-file-normal-user') {
+            steps {
+                sshagent(['win-user-cred']) {
+                    //sh 'ssh -o StrictHostKeyChecking=no -l nipun 43.205.113.33 dir'
+                    sh 'scp -r /var/lib/jenkins/workspace/ssh-poc/src/main/* nipun@43.205.113.33:C:/Users/nipun'
+                    sh 'ssh -o StrictHostKeyChecking=no -l nipun 43.205.113.33 dir'
+                }
+            }
+        }
+        stage('win-service-restart') {
+            steps {
+                sshagent(['windows-ssh']) {
+                    //sh 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 sc query MSiSCSI'
+                    sh 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 sc config "MSiSCSI" start=auto'
+                    sh returnStatus: true, script: 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 net stop MSiSCSI'
+                    sh 'sleep 5'
+                    sh 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 sc query MSiSCSI'
+                    sh 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 net start MSiSCSI'
+                    sh 'sleep 5'
+                    sh 'ssh -o StrictHostKeyChecking=no -l Administrator 43.205.113.33 sc query MSiSCSI'
+                }
+            }
+        }
+    }
+    post { 
+        always { 
+            cleanWs()
+        }
+    }
+}
